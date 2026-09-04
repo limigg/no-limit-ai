@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>海外无限制 AI 助手</title>
+  <title>Groq 极速 AI 对话</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
     .header { padding: 15px 20px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
@@ -15,37 +15,17 @@
     .input-box { padding: 15px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 10px; }
     input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 15px; outline: none; }
     button { padding: 12px 20px; border-radius: 8px; border: none; background: #6366f1; color: white; font-weight: bold; cursor: pointer; }
-    
-    /* 激活模态框 */
-    .auth-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); display: flex; justify-content: center; align-items: center; z-index: 999; }
-    .auth-card { background: #1e293b; padding: 30px; border-radius: 16px; border: 1px solid #334155; text-align: center; width: 90%; max-width: 400px; }
-    .auth-card h2 { margin-top: 0; color: #f8fafc; }
-    .auth-card p { color: #94a3b8; font-size: 14px; }
-    .auth-card input { width: 100%; margin: 15px 0; box-sizing: border-box; text-align: center; font-size: 16px; }
-    .auth-card a { color: #38bdf8; text-decoration: none; font-size: 13px; display: block; margin-top: 15px; }
   </style>
 </head>
 <body>
 
-  <!-- 激活拦截弹窗 -->
-  <div class="auth-overlay" id="auth-overlay">
-    <div class="auth-card">
-      <h2>🔑 请输入激活码</h2>
-      <p>无需注册，输入卡密即可解锁无限制 AI 对话权限</p>
-      <input type="text" id="pass-code" placeholder="粘贴你的卡密 (如 VIP-7DAY-8888)">
-      <button onclick="verifyCode()" style="width: 100%;">立即解锁</button>
-      <!-- ⚠️ 替换成你自己的面包多购买链接 -->
-      <a href="https://mianbaoduo.com/o/bread/YOUR_ID" target="_blank">🛒 没有卡密？点击此处自动购买</a>
-    </div>
-  </div>
-
   <div class="header">
-    <h1>🌐 海外无限制 AI 助手</h1>
-    <span id="vip-status" style="font-size: 12px; color: #10b981;">已激活 VIP</span>
+    <h1>⚡ Groq 极速 AI</h1>
+    <button onclick="setApiKey()" style="padding: 6px 12px; font-size: 12px;">设置 Groq Key</button>
   </div>
 
   <div class="chat-box" id="chat-box">
-    <div class="message ai">系统已解锁！你可以随意向我提问。</div>
+    <div class="message ai">系统已就绪。请点击右上角输入你的 Groq Key（gsk_...开头）即可开始使用。</div>
   </div>
 
   <div class="input-box">
@@ -54,25 +34,14 @@
   </div>
 
   <script>
-    // 允许的卡密列表（你在发卡网上上架的那批卡密）
-    const VALID_CODES = ["VIP-7DAY-8888", "VIP-7DAY-9999", "DEMO666"];
-    
-    // 你写好的 Groq / OpenRouter 免费 API Key（内置在代码里，用户看不到）
-    const BACKEND_API_KEY = "gsk_xxxxxxx"; // 替换为你自己的 Groq 或 OpenRouter Key
+    let apiKey = localStorage.getItem('groq_api_key') || '';
 
-    // 检查本地是否有激活缓存
-    if (localStorage.getItem('user_vip_active') === 'true') {
-      document.getElementById('auth-overlay').style.display = 'none';
-    }
-
-    function verifyCode() {
-      const code = document.getElementById('pass-code').value.trim();
-      if (VALID_CODES.includes(code)) {
-        localStorage.setItem('user_vip_active', 'true');
-        document.getElementById('auth-overlay').style.display = 'none';
-        alert('激活成功！');
-      } else {
-        alert('卡密无效或已被使用！请检查或重新购买。');
+    function setApiKey() {
+      const key = prompt('请输入你的 Groq API Key (gsk_...):', apiKey);
+      if (key) {
+        apiKey = key.trim();
+        localStorage.setItem('groq_api_key', apiKey);
+        alert('Groq Key 保存成功！');
       }
     }
 
@@ -81,16 +50,22 @@
       const text = input.value.trim();
       if (!text) return;
 
+      if (!apiKey) {
+        alert('请先点击右上角设置 Groq Key！');
+        setApiKey();
+        return;
+      }
+
       appendMessage(text, 'user');
       input.value = '';
 
-      const aiMsgDiv = appendMessage('AI 思考中...', 'ai');
+      const aiMsgDiv = appendMessage('思考中...', 'ai');
 
       try {
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${BACKEND_API_KEY}`,
+            'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -100,13 +75,13 @@
         });
 
         const data = await response.json();
-        if (data.choices && data.choices[0]) {
+        if (response.ok && data.choices && data.choices[0]) {
           aiMsgDiv.innerText = data.choices[0].message.content;
         } else {
-          aiMsgDiv.innerText = '接口响应异常，请重试。';
+          aiMsgDiv.innerText = '错误: ' + (data.error?.message || '请求失败，请检查 Key 是否有效');
         }
       } catch (e) {
-        aiMsgDiv.innerText = '发送失败，请检查网络或配置。';
+        aiMsgDiv.innerText = '网络请求失败，请重试。';
       }
     }
 
