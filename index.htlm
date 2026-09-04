@@ -1,30 +1,82 @@
-fetch('https://openrouter.ai/api/v1/chat/completions', {
-  method: 'POST',
-  headers: {
-    Authorization: 'Bearer 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',
-    'HTTP-Referer': '<YOUR_SITE_URL>',
-    'X-Title': '<YOUR_SITE_NAME>',
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    model: 'openai/gpt-4o',
-    messages: [
-      {
-        role: 'user',
-        content: 'What is the meaning of life?',
-      },
-    ],
-  }),
-});
-curl https://openrouter.ai/api/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer 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" \
-  -d '{
-  "model": "openai/gpt-4o",
-  "messages": [
-    {
-      "role": "user",
-      "content": "What is the meaning of life?"
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>本地无监管 AI 助手</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+    .header { padding: 15px 20px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; font-size: 18px; color: #10b981; }
+    .status { font-size: 13px; color: #a7f3d0; }
+    .chat-box { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+    .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 15px; line-height: 1.5; word-break: break-word; }
+    .user { align-self: flex-end; background: #059669; color: white; border-bottom-right-radius: 2px; }
+    .ai { align-self: flex-start; background: #334155; color: #f8fafc; border-bottom-left-radius: 2px; }
+    .input-box { padding: 15px; background: #1e293b; border-top: 1px solid #334155; display: flex; gap: 10px; }
+    input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: white; font-size: 15px; outline: none; }
+    button { padding: 12px 20px; border-radius: 8px; border: none; background: #10b981; color: #0f172a; font-weight: bold; cursor: pointer; }
+    button:hover { background: #34d399; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>🔒 Mac 本地无监管 AI</h1>
+    <div class="status">状态: 连接本地 Ollama</div>
+  </div>
+
+  <div class="chat-box" id="chat-box">
+    <div class="message ai">你好！我已经准备就绪。数据完全在你的 Mac 本地运行，无网络监管、无内容限制。</div>
+  </div>
+
+  <div class="input-box">
+    <input type="text" id="user-input" placeholder="输入任意指令..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()">发送</button>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const input = document.getElementById('user-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage(text, 'user');
+      input.value = '';
+
+      const aiMsgDiv = appendMessage('AI 正在思考中...', 'ai');
+
+      try {
+        const response = await fetch('http://localhost:11434/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'dolphin-llama3',
+            prompt: text,
+            stream: false
+          })
+        });
+
+        const data = await response.json();
+        if (data.response) {
+          aiMsgDiv.innerText = data.response;
+        } else {
+          aiMsgDiv.innerText = '未收到有效响应，请确认终端中已运行模型。';
+        }
+      } catch (e) {
+        aiMsgDiv.innerText = '无法连接到本地 Ollama，请确认在终端运行了：OLLAMA_ORIGINS="*" ollama serve';
+      }
     }
-  ]
-}'
+
+    function appendMessage(text, role) {
+      const chatBox = document.getElementById('chat-box');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `message ${role}`;
+      msgDiv.innerText = text;
+      chatBox.appendChild(msgDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return msgDiv;
+    }
+  </script>
+</body>
+</html>
